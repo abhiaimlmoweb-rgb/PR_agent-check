@@ -37,7 +37,7 @@ Document name: {document_name}
 
 def _parse_agent_json(raw: str) -> list[dict]:
     text = raw.strip()
-    fence = re.search(r"```(?:json)?\s*(\[.*\])\s*```", text, re.DOTALL)
+    fence = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", text, re.DOTALL)
     if fence:
         text = fence.group(1)
     data = json.loads(text)
@@ -102,7 +102,7 @@ class AgentChunker(BaseChunker):
         chunks: list[Chunk] = []
         for idx, item in enumerate(items):
             title = str(item.get("title", f"Chunk {idx}")).strip()
-            body = str(item.get("content", item.get("text", ""))).strip()
+            body = str(item.get("text") or item.get("content", "")).strip()
             if not body:
                 continue
             chunk_text = f"[{title}]\n{body}" if title else body
@@ -145,7 +145,7 @@ class AgentChunker(BaseChunker):
 
         # Long documents: agent-chunk each window, then merge
         all_chunks: list[Chunk] = []
-        step = self._max_doc_chars + self.chunk_overlap
+        step = max(1, self._max_doc_chars - self.chunk_overlap)
         for start in range(0, len(text), step):
             window = text[start : start + self._max_doc_chars]
             window_chunks = self._agent_split(window, document_name)

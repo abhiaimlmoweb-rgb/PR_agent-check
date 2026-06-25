@@ -51,3 +51,37 @@ def test_parse_agent_json_with_code_fence():
     raw = '```json\n[{"title": "Intro", "text": "Hello"}]\n```'
     items = _parse_agent_json(raw)
     assert items[0]["title"] == "Intro"
+
+
+def test_document_based_preserves_preamble():
+    md = "Intro paragraph before any heading.\n\n# Title\n\nBody text."
+    chunks = DocumentBasedChunker(chunk_size=512).chunk_text(md, "doc.md")
+    assert any("Intro paragraph" in c.text for c in chunks)
+
+
+def test_document_based_unique_chunk_ids_across_tables():
+    md = """# Doc
+
+| A | B |
+|---|---|
+| 1 | 2 |
+
+More text.
+
+| C | D |
+|---|---|
+| 3 | 4 |
+"""
+    chunks = DocumentBasedChunker(chunk_size=512).chunk_text(md, "doc.md")
+    table_chunks = [c for c in chunks if c.metadata.get("chunk_type") == "table"]
+    assert len(table_chunks) == 2
+    assert table_chunks[0].chunk_id != table_chunks[1].chunk_id
+
+
+def test_document_based_sibling_sections_share_parent_path():
+    md = "# Root\n\n## Alpha\n\nAlpha body.\n\n## Beta\n\nBeta body."
+    chunks = DocumentBasedChunker(chunk_size=512).chunk_text(md, "doc.md")
+    alpha = next(c for c in chunks if c.metadata.get("section_title") == "Alpha")
+    beta = next(c for c in chunks if c.metadata.get("section_title") == "Beta")
+    assert alpha.metadata["section_path"] == "Root > Alpha"
+    assert beta.metadata["section_path"] == "Root > Beta"

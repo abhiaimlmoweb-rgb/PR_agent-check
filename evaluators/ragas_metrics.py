@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from embeddings.base import BaseEmbedder
 from embeddings.minilm import MiniLMEmbedder
 from generators.base import GenerationResult
 from retrievers.base import RetrievalResult
@@ -41,9 +42,9 @@ class RagasReport:
 class RagasEvaluator:
     """Embedding similarity proxy for common RAG evaluation metrics."""
 
-    def __init__(self, threshold: float = 0.35) -> None:
+    def __init__(self, threshold: float = 0.35, embedder: BaseEmbedder | None = None) -> None:
         self.threshold = threshold
-        self._embedder = MiniLMEmbedder()
+        self._embedder = embedder or MiniLMEmbedder()
 
     def _cos(self, a: str, b: str) -> float:
         va = self._embedder.embed_query(a)

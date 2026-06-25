@@ -44,18 +44,24 @@ class ParentDocumentRetriever(BaseRetriever):
             metadata={**chunk.metadata, "expanded_from_child": True},
         )
 
+    def _result_key(self, chunk: Chunk) -> tuple[str, int]:
+        """Dedupe key: parent window when available, else unique child chunk."""
+        if chunk.metadata.get("parent_text"):
+            parent_id = int(chunk.metadata.get("parent_id", chunk.chunk_id))
+            return chunk.document_name, parent_id
+        return chunk.document_name, chunk.chunk_id
+
     def retrieve(self, query: str, top_k: int = 5) -> list[RetrievalResult]:
         raw = self.inner.retrieve(query, top_k=top_k * 2)
-        seen_parents: set[tuple[str, int]] = set()
+        seen: set[tuple[str, int]] = set()
         results: list[RetrievalResult] = []
         start = time.perf_counter()
 
         for hit in raw:
-            parent_id = hit.chunk.metadata.get("parent_id", hit.chunk.chunk_id)
-            key = (hit.chunk.document_name, int(parent_id))
-            if key in seen_parents:
+            key = self._result_key(hit.chunk)
+            if key in seen:
                 continue
-            seen_parents.add(key)
+            seen.add(key)
             expanded = self._expand_chunk(hit.chunk)
             results.append(
                 RetrievalResult(

@@ -67,13 +67,18 @@ class DocumentBasedChunker(BaseChunker):
         sections: list[tuple[str, str, str]] = []
         stack: list[tuple[int, str]] = []
 
+        if breaks[0][0] > 0:
+            preamble = text[: breaks[0][0]].strip()
+            if preamble:
+                sections.append(("Introduction", "Introduction", preamble))
+
         for i, (start, level, _marker, title) in enumerate(breaks):
             end = breaks[i + 1][0] if i + 1 < len(breaks) else len(text)
             header_end = text.find("\n", start)
             body_start = header_end + 1 if header_end != -1 else start + len(title) + 1
             body = text[body_start:end].strip()
 
-            while stack and stack[-1][0] > level:
+            while stack and stack[-1][0] >= level:
                 stack.pop()
             stack.append((level, title))
             path = _section_path(stack)
@@ -149,7 +154,7 @@ class DocumentBasedChunker(BaseChunker):
                     "Tables",
                     "Table",
                     block,
-                    0,
+                    chunk_id,
                     chunk_type="table",
                 )
                 chunks.extend(table_chunks)

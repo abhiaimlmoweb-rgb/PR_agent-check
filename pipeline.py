@@ -242,7 +242,7 @@ class RAGPipeline:
         )
         self.reranker = CrossEncoderReranker() if self.config.use_reranker else None
         self.citation_verifier = CitationVerifier()
-        self.ragas_evaluator = RagasEvaluator()
+        self.ragas_evaluator = RagasEvaluator(embedder=self.embedder)
         self.query_cache = RedisQueryCache() if self.config.use_redis_cache else RedisQueryCache(url=None)
         self.dashboard = EvaluationDashboard()
         self.tracker = ExperimentTracker(self.config.experiments_dir)
@@ -254,7 +254,8 @@ class RAGPipeline:
     def _config_hash(self) -> str:
         payload = {
             "chunking": self.config.chunking_strategy,
-            "chunk_size": self.config.top_k,
+            "chunk_size": self.config.chunk_size,
+            "chunk_overlap": self.config.chunk_overlap,
             "embed": self.config.embedding_model,
             "retrieval": self.config.retrieval_mode,
             "backend": self.config.index_backend,
@@ -513,9 +514,12 @@ class RAGPipeline:
             self.config.chunking_strategy,
             self.config.chunk_size,
             self.config.chunk_overlap,
+            gemini_api_key=self.config.gemini_api_key,
+            gemini_model=self.config.gemini_model,
         )
         if self.config.retrieval_mode not in ("bm25", "splade") and self.embedder is None:
             self.embedder = get_embedder(self.config.embedding_model)
+        self.ragas_evaluator = RagasEvaluator(embedder=self.embedder)
         self.retriever = get_retriever(
             self.config.retrieval_mode,
             self.embedder,
